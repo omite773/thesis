@@ -30,6 +30,7 @@
 #include <lmic.h>
 #include <hal.h>
 #include <local_hal.h>
+#include <Python.h>
 
 // LoRaWAN Application identifier (AppEUI)
 // Not used in this example
@@ -82,6 +83,60 @@ lmic_pinmap pins = {
   .dio = {7,4,5}
 };
 
+
+int get_sensor_values() {
+  PyObject *pName, *pModule, *pDict, *pFunc, *pValue, *presult;
+  Py_Initialize();
+  PyRun_SimpleString("import sys");
+  PyRun_SimpleString("sys.path.append(\".\")");
+  pName = PyString_FromString("i2c_master");
+  float res;
+  PyObject *item;
+  pModule = PyImport_Import(pName);
+  printf("Are we here?");
+  Py_DECREF(pName);
+
+  if (pModule != NULL) {
+    pFunc = PyObject_GetAttrString(pModule,(char*)"get_sensor_values");
+    if(pFunc && PyCallable_Check(pFunc)) {
+      pValue = PyObject_CallObject(pFunc,NULL);
+      if (pValue != NULL) {
+	item = PyList_GetItem(pValue,0);
+	//res[0] = PyFloat_AsDouble(item);
+	//item = PyList_GetItem(pValue,1);
+	//res[1] = PyFloat_AsDouble(item);
+	//item = PyList_GetItem(pValue,2);
+	//res[2] = PyFloat_AsDouble(item);
+	res = PyFloat_AsDouble(item);
+	printf("result is: %.2lf", res);
+	Py_DECREF(pValue);
+      }
+      else {
+	Py_DECREF(pFunc);
+	Py_DECREF(pModule);
+	PyErr_Print();
+	fprintf(stderr,"Call failed\n");
+	return 1;
+      }
+    }
+    else {
+      if (PyErr_Occurred())
+	PyErr_Print();
+      fprintf(stderr, "Cannot find function \"%s\"\n", "get_sensor_values");
+    }
+    Py_XDECREF(pFunc);
+    Py_DECREF(pModule);
+  }
+  else {
+    PyErr_Print();
+    fprintf(stderr, "Failed to load \"%s\"\n", "i2c_master");
+    return 1;
+  }
+    Py_Finalize();
+    return 0;
+}
+
+
 void onEvent (ev_t ev) {
     //debug_event(ev);
 
@@ -110,6 +165,7 @@ static void do_send(osjob_t* j){
       fprintf(stdout, "OP_TXRXPEND, not sending");
     } else {
       // Prepare upstream data transmission at the next possible time.
+      get_sensor_values();
       char buf[100];
       sprintf(buf, "Hello world! [%d]", cntr++);
       int i=0;
@@ -123,7 +179,7 @@ static void do_send(osjob_t* j){
     // Schedule a timed job to run at the given timestamp (absolute system time)
     os_setTimedCallback(j, os_getTime()+sec2osticks(20), do_send);
          
-}
+    }
 
 void setup() {
   // LMIC init
