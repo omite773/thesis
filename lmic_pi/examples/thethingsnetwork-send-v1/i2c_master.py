@@ -1,6 +1,7 @@
 from time import sleep
 from smbus2 import SMBusWrapper
 import struct
+import i2c_co2
 address = 0x08
 
 # Give the I2C device time to settle
@@ -18,16 +19,22 @@ def get_float(data, index):
     bytes = bytearray(data[4*index:(index+1)*4])
     return struct.unpack('f', bytes)[0]
 
+
+
 def get_sensor_values():
     result = []
     data = get_data()
-    if(data != -1):
-        temp = round(get_float(data,0),2)
+    (co2, tvoc) = i2c_co2.read_gas()
+    if(data != -1 and (co2, tvoc) != None):
+#        temp = round(get_float(data,0),2)
         c = round(get_float(data,1),2)
-        helo = round(get_float(data,2),2)
-        result = [temp, c, helo]
+#        helo = round(get_float(data,2),2)
+        result = [co2, c, tvoc]
         print(result)
     return result
+
+get_sensor_values()
+
 """    
 
 try:
